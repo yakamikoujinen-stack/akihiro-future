@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>相場帳 - 株式投資リサーチノート</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700;800&family=Noto+Sans+JP:wght@400;500;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#f1ecdd;
+    --paper-line:#d8cfb0;
+    --ink:#1c2230;
+    --ink-soft:#4a5164;
+    --navy:#16213e;
+    --navy-deep:#0e1626;
+    --vermillion:#c1272d;
+    --vermillion-soft:#e0575d;
+    --indigo:#2a4b7c;
+    --gold:#b8860b;
+    --card-bg:#faf7ec;
+    --shadow: 0 6px 18px rgba(22,33,62,0.12);
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'Noto Sans JP', sans-serif;
+    color:var(--ink);
+    background:
+      linear-gradient(var(--paper-line) 1px, transparent 1px) 0 0/100% 28px,
+      linear-gradient(90deg, var(--paper-line) 1px, transparent 1px) 0 0/28px 100%,
+      var(--paper);
+    background-attachment:local;
+    min-height:100vh;
+    padding-bottom:60px;
+  }
+  .mono{font-family:'JetBrains Mono', monospace;}
+  header.masthead{
+    background: linear-gradient(135deg, var(--navy-deep), var(--navy) 60%, #1d2e52);
+    color:#f1ecdd;
+    padding:22px 20px 26px;
+    position:relative;
+    overflow:hidden;
+    box-shadow: var(--shadow);
+  }
+  header.masthead::after{
+    content:"";
+    position:absolute; inset:0;
+    background: repeating-linear-gradient(90deg, rgba(255,255,255,0.03) 0 1px, transparent 1px 26px);
+  }
+  .masthead-row{display:flex; align-items:center; justify-content:space-between; position:relative; z-index:1;}
+  .masthead-title{
+    font-family:'Shippori Mincho', serif;
+    font-weight:800;
+    font-size:26px;
+    letter-spacing:.08em;
+    display:flex; align-items:baseline; gap:10px;
+  }
+  .masthead-title small{
+    font-family:'Noto Sans JP', sans-serif;
+    font-weight:400;
+    font-size:11px;
+    color:#b9c2d6;
+    letter-spacing:.05em;
+  }
+  .stamp{
+    width:46px;height:46px;border-radius:50%;
+    border:2.5px solid var(--vermillion);
+    color:var(--vermillion);
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Shippori Mincho', serif;
+    font-weight:800; font-size:15px;
+    transform:rotate(-8deg);
+    flex-shrink:0;
+    background:rgba(193,39,45,0.06);
+  }
+  .masthead-date{
+    font-size:11px; color:#9fb0cf; margin-top:6px; position:relative; z-index:1;
+  }
+
+  nav.tabs{
+    display:flex; gap:0; background:var(--navy-deep);
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
+    box-shadow: inset 0 -2px 0 var(--gold);
+  }
+  nav.tabs button{
+    flex:1 0 auto; min-width:78px;
+    background:transparent; border:none; color:#9fb0cf;
+    font-family:'Noto Sans JP', sans-serif; font-size:12.5px; font-weight:500;
+    padding:12px 10px; cursor:pointer; letter-spacing:.03em;
+    border-bottom:3px solid transparent;
+    transition: color .15s, border-color .15s;
+  }
+  nav.tabs button.active{ color:#fff; border-bottom-color:var(--vermillion); background:rgba(255,255,255,0.04);}
+
+  main{max-width:720px; margin:0 auto; padding:18px 14px 10px;}
+  .view{display:none;}
+  .view.active{display:block; animation:fade .25s ease;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+
+  .section-label{
+    font-family:'Shippori Mincho', serif; font-weight:700; font-size:16px;
+    color:var(--navy); margin:22px 0 10px; display:flex; align-items:center; gap:8px;
+  }
+  .section-label::before{content:""; width:5px; height:16px; background:var(--vermillion); display:inline-block; border-radius:1px;}
+  .section-label:first-child{margin-top:4px;}
+
+  .kpi-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
+  .kpi-card{
+    background:var(--card-bg); border:1px solid var(--paper-line); border-radius:10px;
+    padding:13px 14px; box-shadow:var(--shadow);
+  }
+  .kpi-card .label{font-size:11px; color:var(--ink-soft); letter-spacing:.04em;}
+  .kpi-card .value{font-family:'JetBrains Mono',monospace; font-size:21px; font-weight:700; margin-top:4px; color:var(--navy);}
+  .kpi-card .value.up{color:var(--vermillion);}
+  .kpi-card .value.down{color:var(--indigo);}
+  .kpi-card .sub{font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
+
+  .card{
+    background:var(--card-bg); border:1px solid var(--paper-line); border-radius:10px;
+    padding:14px; margin-bottom:10px; box-shadow:var(--shadow);
+  }
+  .card-top{display:flex; justify-content:space-between; align-items:flex-start; gap:8px;}
+  .stock-code{font-family:'JetBrains Mono',monospace; font-size:11px; color:var(--ink-soft); background:rgba(22,33,62,0.06); padding:2px 6px; border-radius:4px;}
+  .stock-name{font-family:'Shippori Mincho', serif; font-weight:700; font-size:16.5px; margin:3px 0 0;}
+  .stock-sector{font-size:10.5px; color:var(--ink-soft); margin-top:2px;}
+  .price-tag{font-family:'JetBrains Mono',monospace; font-size:18px; font-weight:700; text-align:right;}
+  .badge-diff{font-size:11px; font-family:'JetBrains Mono',monospace; text-align:right; margin-top:2px;}
+  .badge-diff.up{color:var(--vermillion);} .badge-diff.down{color:var(--indigo);}
+
+  .card-actions{display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;}
+  button.mini{
+    border:1px solid var(--navy); background:#fff; color:var(--navy);
+    font-size:11.5px; padding:6px 10px; border-radius:6px; cursor:pointer; font-family:'Noto Sans JP',sans-serif;
+  }
+  button.mini.danger{border-color:var(--vermillion); color:var(--vermillion);}
+  button.mini:active{transform:scale(.97);}
+
+  .fab{
+    position:fixed; right:16px; bottom:20px; z-index:20;
+    width:54px; height:54px; border-radius:50%;
+    background:var(--vermillion); color:#fff; border:none;
+    font-size:26px; box-shadow:0 8px 20px rgba(193,39,45,0.4); cursor:pointer;
+  }
+
+  .empty{
+    text-align:center; padding:30px 14px; color:var(--ink-soft);
+    border:1.5px dashed var(--paper-line); border-radius:10px; font-size:13px; line-height:1.7;
+  }
+
+  .modal-backdrop{
+    position:fixed; inset:0; background:rgba(14,22,38,0.55); z-index:30;
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  .modal-backdrop.open{display:flex;}
+  .modal{
+    background:var(--paper); width:100%; max-width:520px; max-height:88vh; overflow-y:auto;
+    border-radius:16px 16px 0 0; padding:18px 16px 24px; box-shadow:0 -8px 30px rgba(0,0,0,0.3);
+  }
+  .modal h3{font-family:'Shippori Mincho', serif; margin:0 0 14px; color:var(--navy); font-size:18px;}
+  .field{margin-bottom:12px;}
+  .field label{display:block; font-size:11.5px; color:var(--ink-soft); margin-bottom:4px; letter-spacing:.03em;}
+  .field input, .field select, .field textarea{
+    width:100%; padding:9px 10px; border:1px solid var(--paper-line); border-radius:7px;
+    background:#fff; font-family:'Noto Sans JP',sans-serif; font-size:14px; color:var(--ink);
+  }
+  .field textarea{resize:vertical; min-height:56px;}
+  .field-row{display:flex; gap:10px;}
+  .field-row .field{flex:1;}
+  .modal-actions{display:flex; gap:10px; margin-top:16px;}
+  .btn-primary{
+    flex:1; background:var(--navy); color:#fff; border:none; padding:12px; border-radius:8px;
+    font-size:14px; font-weight:600; cursor:pointer; font-family:'Noto Sans JP',sans-serif;
+  }
+  .btn-secondary{
+    background:transparent; border:1px solid var(--ink-soft); color:var(--ink-soft);
+    padding:12px 16px; border-radius:8px; font-size:14px; cursor:pointer; font-family:'Noto Sans JP',sans-serif;
+  }
+
+  table.log-table{width:100%; border-collapse:collapse; font-size:12px;}
+  table.log-table th, table.log-table td{
+    padding:6px 5px; text-align:right; border-bottom:1px solid var(--paper-line); font-family:'JetBrains Mono',monospace;
+  }
+  table.log-table th{color:var(--ink-soft); font-weight:500; font-size:10.5px;}
+  table.log-table td:first-child, table.log-table th:first-child{text-align:left; font-family:'Noto Sans JP',sans-serif;}
+  .sparkline{margin-top:8px;}
+
+  select#stockSelectForRecord, select#stockSelectForHolding{margin-bottom:4px;}
+  .stamp-tag{
+    display:inline-block; border:1.5px solid var(--vermillion); color:var(--vermillion);
+    border-radius:4px; padding:1px 7px; font-size:10.5px; font-family:'Shippori Mincho',serif; font-weight:700;
+    transform:rotate(-3deg); background:rgba(193,39,45,0.05);
+  }
+  .stamp-tag.blue{border-color:var(--indigo); color:var(--indigo); background:rgba(42,75,124,0.05);}
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="masthead-row">
+    <div class="masthead-title">相場帳<small>KABU NOTE</small></div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button id="settingsBtn" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.25); color:#e8ecf5; width:38px; height:38px; border-radius:50%; font-size:16px; cursor:pointer;" title="API設定">⚙</button>
+      <div class="stamp">研究</div>
+    </div>
+  </div>
+  <div class="masthead-date" id="todayLabel"></div>
+</header>
+
+<nav class="tabs">
+  <button class="tab-btn active" data-view="dashboard">概況</button>
+  <button class="tab-btn" data-view="watchlist">銘柄一覧</button>
+  <button class="tab-btn" data-view="records">データ記録</button>
+  <button class="tab-btn" data-view="portfolio">保有株</button>
+</nav>
+
+<main>
+
+  <!-- DASHBOARD -->
+  <section class="view active" id="view-dashboard">
+    <div class="section-label">本日の概況</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="label">保有評価額合計</div>
+        <div class="value mono" id="kpiTotalValue">¥0</div>
+        <div class="sub" id="kpiHoldingCount">0銘柄保有</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">評価損益</div>
+        <div class="value mono" id="kpiTotalPL">¥0</div>
+        <div class="sub" id="kpiTotalPLPct">0.0%</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">ウォッチ銘柄数</div>
+        <div class="value" id="kpiWatchCount">0</div>
+        <div class="sub">目標価格設定済み含む</div>
+      </div>
+      <div class="kpi-card">
+        <div class="label">記録データ件数</div>
+        <div class="value" id="kpiRecordCount">0</div>
+        <div class="sub">全銘柄の参考データ累計</div>
+      </div>
+    </div>
+
+    <div class="section-label">値上がり・値下がり銘柄（記録ベース）</div>
+    <div id="moversList"></div>
+  </section>
+
+  <!-- WATCHLIST -->
+  <section class="view" id="view-watchlist">
+    <div class="section-label">ウォッチリスト</div>
+    <div id="watchlistContainer"></div>
+  </section>
+
+  <!-- RECORDS -->
+  <section class="view" id="view-records">
+    <div class="section-label">参考データ記録</div>
+    <div class="field">
+      <label>銘柄を選択</label>
+      <select id="stockSelectForRecord" onchange="renderRecordDetail()"></select>
+    </div>
+    <div id="recordDetail"></div>
+  </section>
+
+  <!-- PORTFOLIO -->
+  <section class="view" id="view-portfolio">
+    <div class="section-label">保有株管理</div>
+    <div id="portfolioContainer"></div>
+  </section>
+
+</main>
+
+<button class="fab" id="fabBtn">＋</button>
+
+<!-- MODAL: add stock -->
+<div class="modal-backdrop" id="modalStock">
+  <div class="modal">
+    <h3>銘柄を登録</h3>
+    <div class="field-row">
+      <div class="field"><label>証券コード</label><input id="f_code" placeholder="例: 7203" maxlength="10"></div>
+      <div class="field"><label>市場</label>
+        <select id="f_market"><option>日本株</option><option>米国株</option><option>その他</option></select>
+      </div>
+    </div>
+    <div style="margin:-4px 0 10px;">
+      <button class="mini" type="button" onclick="autoFillStockInfo()">🔎 J-Quantsから銘柄名を自動取得</button>
+      <div id="stockFetchStatus" style="font-size:11px; color:var(--ink-soft); margin-top:5px;"></div>
+    </div>
+    <div class="field"><label>銘柄名</label><input id="f_name" placeholder="例: トヨタ自動車"></div>
+    <div class="field-row">
+      <div class="field"><label>業種</label><input id="f_sector" placeholder="例: 輸送用機器"></div>
+      <div class="field"><label>目標株価</label><input id="f_target" type="number" placeholder="任意"></div>
+    </div>
+    <div class="field"><label>メモ</label><textarea id="f_memo" placeholder="注目理由、戦略など"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modalStock')">キャンセル</button>
+      <button class="btn-primary" onclick="saveStock()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: add record -->
+<div class="modal-backdrop" id="modalRecord">
+  <div class="modal">
+    <h3>参考データを記録</h3>
+    <div class="field"><label>対象銘柄</label><select id="r_stockId"></select></div>
+    <div style="margin:-4px 0 10px;">
+      <button class="mini" type="button" onclick="autoFillLatestPrice()">🔎 J-Quantsから最新株価を自動取得</button>
+      <div id="recordFetchStatus" style="font-size:11px; color:var(--ink-soft); margin-top:5px;"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>日付</label><input id="r_date" type="date"></div>
+      <div class="field"><label>株価</label><input id="r_price" type="number" placeholder="円"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>PER (倍)</label><input id="r_per" type="number" step="0.1"></div>
+      <div class="field"><label>PBR (倍)</label><input id="r_pbr" type="number" step="0.01"></div>
+    </div>
+    <div class="field-row">
+      <div class="field"><label>配当利回り (%)</label><input id="r_div" type="number" step="0.01"></div>
+      <div class="field"><label>ROE (%)</label><input id="r_roe" type="number" step="0.1"></div>
+    </div>
+    <div class="field"><label>メモ・材料</label><textarea id="r_memo" placeholder="決算内容、ニュースなど"></textarea></div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modalRecord')">キャンセル</button>
+      <button class="btn-primary" onclick="saveRecord()">記録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: settings -->
+<div class="modal-backdrop" id="modalSettings">
+  <div class="modal">
+    <h3>API設定（J-Quants）</h3>
+    <div class="field">
+      <label>J-Quants APIキー</label>
+      <input id="s_apikey" placeholder="APIキーを貼り付け">
+    </div>
+    <div style="font-size:11.5px; color:var(--ink-soft); line-height:1.7; margin-bottom:10px;">
+      APIキーはこの端末のブラウザ内にのみ保存され、GitHubには送信・保存されません。J-Quantsダッシュボードの「API Key」から取得したキーを貼り付けてください。
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modalSettings')">閉じる</button>
+      <button class="btn-primary" onclick="saveApiKey()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: add holding -->
+<div class="modal-backdrop" id="modalHolding">
+  <div class="modal">
+    <h3>保有株を登録</h3>
+    <div class="field"><label>対象銘柄</label><select id="h_stockId"></select></div>
+    <div class="field-row">
+      <div class="field"><label>保有株数</label><input id="h_qty" type="number"></div>
+      <div class="field"><label>取得単価</label><input id="h_cost" type="number"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modalHolding')">キャンセル</button>
+      <button class="btn-primary" onclick="saveHolding()">登録する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ---------- storage ---------- */
+const KEYS = { stocks:'kabu_note_v1_stocks', records:'kabu_note_v1_records', holdings:'kabu_note_v1_holdings' };
+function load(key){ try{ return JSON.parse(localStorage.getItem(key)) || []; }catch(e){ return []; } }
+function save(key, val){ localStorage.setItem(key, JSON.stringify(val)); }
+let stocks = load(KEYS.stocks);
+let records = load(KEYS.records);
+let holdings = load(KEYS.holdings);
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+/* ---------- helpers ---------- */
+function fmtYen(n){ return '¥' + Math.round(n).toLocaleString('ja-JP'); }
+function fmtPct(n){ return (n>=0?'+':'') + n.toFixed(2) + '%'; }
+function latestRecord(stockId){
+  const rs = records.filter(r=>r.stockId===stockId).sort((a,b)=>a.date<b.date?1:-1);
+  return rs[0] || null;
+}
+function stockById(id){ return stocks.find(s=>s.id===id); }
+
+/* ---------- J-Quants API ---------- */
+const APIKEY_STORAGE = 'kabu_note_v1_jquants_apikey';
+function getApiKey(){ return localStorage.getItem(APIKEY_STORAGE) || ''; }
+function saveApiKey(){
+  const v = document.getElementById('s_apikey').value.trim();
+  localStorage.setItem(APIKEY_STORAGE, v);
+  closeModal('modalSettings');
+}
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  document.getElementById('s_apikey').value = getApiKey();
+  openModal('modalSettings');
+});
+
+async function jquantsGet(path, params){
+  const key = getApiKey();
+  if(!key){ throw new Error('NO_KEY'); }
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`https://api.jquants.com/v2/${path}?${qs}`, {
+    headers: { 'x-api-key': key }
+  });
+  if(!res.ok) throw new Error('HTTP_'+res.status);
+  return res.json();
+}
+
+async function autoFillStockInfo(){
+  const code = document.getElementById('f_code').value.trim();
+  const statusEl = document.getElementById('stockFetchStatus');
+  if(!code){ statusEl.textContent = '先に証券コードを入力してください'; return; }
+  statusEl.textContent = '取得中...';
+  try{
+    const json = await jquantsGet('equities/master', { code });
+    const arr = json.data || json.equities || json.info || [];
+    const item = Array.isArray(arr) ? arr[0] : arr;
+    if(!item){ statusEl.textContent = 'データが見つかりませんでした。手動で入力してください'; return; }
+    const name = item.CompanyName || item.CompanyNameJapanese || item.Name || item.company_name;
+    const sector = item.Sector33Name || item.Sector17Name || item.sector33_name || '';
+    if(name) document.getElementById('f_name').value = name;
+    if(sector) document.getElementById('f_sector').value = sector;
+    statusEl.textContent = '取得できました（内容を確認してください）';
+  } catch(e){
+    if(e.message==='NO_KEY'){ statusEl.textContent = '右上の⚙からAPIキーを設定してください'; }
+    else { statusEl.textContent = '取得に失敗しました（CORS制限の可能性があります）。手動で入力してください'; }
+  }
+}
+
+async function autoFillLatestPrice(){
+  const stockId = document.getElementById('r_stockId').value;
+  const statusEl = document.getElementById('recordFetchStatus');
+  if(!stockId){ statusEl.textContent = '銘柄を選択してください'; return; }
+  const s = stockById(stockId);
+  statusEl.textContent = '取得中...';
+  try{
+    const json = await jquantsGet('equities/bars/daily', { code: s.code });
+    const arr = json.data || json.daily_quotes || [];
+    if(!Array.isArray(arr) || arr.length===0){ statusEl.textContent = 'データが見つかりませんでした。手動で入力してください'; return; }
+    arr.sort((a,b)=> (b.Date||b.date||'').localeCompare(a.Date||a.date||''));
+    const latest = arr[0];
+    const date = latest.Date || latest.date;
+    const close = latest.Close ?? latest.C ?? latest.close;
+    if(date) document.getElementById('r_date').value = date.slice(0,10);
+    if(close != null) document.getElementById('r_price').value = close;
+    statusEl.textContent = `${date ? date.slice(0,10):''} 時点の株価を取得しました（内容を確認して記録してください）`;
+  } catch(e){
+    if(e.message==='NO_KEY'){ statusEl.textContent = '右上の⚙からAPIキーを設定してください'; }
+    else { statusEl.textContent = '取得に失敗しました（CORS制限の可能性があります）。手動で入力してください'; }
+  }
+}
+
+/* ---------- tabs ---------- */
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('view-'+btn.dataset.view).classList.add('active');
+    if(btn.dataset.view==='dashboard') renderDashboard();
+    if(btn.dataset.view==='watchlist') renderWatchlist();
+    if(btn.dataset.view==='records') { populateStockSelects(); renderRecordDetail(); }
+    if(btn.dataset.view==='portfolio') renderPortfolio();
+  });
+});
+
+/* ---------- modal helpers ---------- */
+function openModal(id){ document.getElementById(id).classList.add('open'); }
+function closeModal(id){ document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-backdrop').forEach(m=>{
+  m.addEventListener('click', e=>{ if(e.target===m) m.classList.remove('open'); });
+});
+
+document.getElementById('fabBtn').addEventListener('click', ()=>{
+  const active = document.querySelector('.view.active').id;
+  if(active==='view-watchlist'){ clearStockForm(); openModal('modalStock'); }
+  else if(active==='view-records'){ populateStockSelects(); document.getElementById('r_date').valueAsDate = new Date(); openModal('modalRecord'); }
+  else if(active==='view-portfolio'){ populateStockSelects(); openModal('modalHolding'); }
+  else { clearStockForm(); openModal('modalStock'); }
+});
+
+/* ---------- stock CRUD ---------- */
+let editingStockId = null;
+function clearStockForm(){
+  editingStockId = null;
+  ['f_code','f_name','f_sector','f_target','f_memo'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f_market').value='日本株';
+}
+function saveStock(){
+  const code = document.getElementById('f_code').value.trim();
+  const name = document.getElementById('f_name').value.trim();
+  if(!code || !name){ alert('証券コードと銘柄名を入力してください'); return; }
+  const data = {
+    code, name,
+    market: document.getElementById('f_market').value,
+    sector: document.getElementById('f_sector').value.trim(),
+    targetPrice: parseFloat(document.getElementById('f_target').value) || null,
+    memo: document.getElementById('f_memo').value.trim()
+  };
+  if(editingStockId){
+    Object.assign(stockById(editingStockId), data);
+  } else {
+    stocks.push({ id: uid(), ...data });
+  }
+  save(KEYS.stocks, stocks);
+  closeModal('modalStock');
+  renderWatchlist(); renderDashboard();
+}
+function editStock(id){
+  const s = stockById(id); if(!s) return;
+  editingStockId = id;
+  document.getElementById('f_code').value = s.code;
+  document.getElementById('f_market').value = s.market || '日本株';
+  document.getElementById('f_name').value = s.name;
+  document.getElementById('f_sector').value = s.sector || '';
+  document.getElementById('f_target').value = s.targetPrice || '';
+  document.getElementById('f_memo').value = s.memo || '';
+  openModal('modalStock');
+}
+function deleteStock(id){
+  if(!confirm('この銘柄と関連データを削除しますか？')) return;
+  stocks = stocks.filter(s=>s.id!==id);
+  records = records.filter(r=>r.stockId!==id);
+  holdings = holdings.filter(h=>h.stockId!==id);
+  save(KEYS.stocks, stocks); save(KEYS.records, records); save(KEYS.holdings, holdings);
+  renderWatchlist(); renderDashboard();
+}
+
+/* ---------- record CRUD ---------- */
+function populateStockSelects(){
+  const opts = stocks.map(s=>`<option value="${s.id}">${s.code} ${s.name}</option>`).join('');
+  ['stockSelectForRecord','r_stockId','h_stockId'].forEach(id=>{
+    const el = document.getElementById(id);
+    const cur = el.value;
+    el.innerHTML = opts || '<option value="">銘柄を先に登録してください</option>';
+    if(cur) el.value = cur;
+  });
+}
+function saveRecord(){
+  const stockId = document.getElementById('r_stockId').value;
+  const date = document.getElementById('r_date').value;
+  const price = parseFloat(document.getElementById('r_price').value);
+  if(!stockId){ alert('銘柄を選択してください'); return; }
+  if(!date || isNaN(price)){ alert('日付と株価を入力してください'); return; }
+  records.push({
+    id: uid(), stockId, date, price,
+    per: parseFloat(document.getElementById('r_per').value) || null,
+    pbr: parseFloat(document.getElementById('r_pbr').value) || null,
+    dividendYield: parseFloat(document.getElementById('r_div').value) || null,
+    roe: parseFloat(document.getElementById('r_roe').value) || null,
+    memo: document.getElementById('r_memo').value.trim()
+  });
+  save(KEYS.records, records);
+  ['r_price','r_per','r_pbr','r_div','r_roe','r_memo'].forEach(id=>document.getElementById(id).value='');
+  closeModal('modalRecord');
+  document.getElementById('stockSelectForRecord').value = stockId;
+  renderRecordDetail(); renderDashboard();
+}
+function deleteRecord(id){
+  records = records.filter(r=>r.id!==id);
+  save(KEYS.records, records);
+  renderRecordDetail(); renderDashboard();
+}
+
+/* ---------- holding CRUD ---------- */
+function saveHolding(){
+  const stockId = document.getElementById('h_stockId').value;
+  const qty = parseFloat(document.getElementById('h_qty').value);
+  const cost = parseFloat(document.getElementById('h_cost').value);
+  if(!stockId || isNaN(qty) || isNaN(cost)){ alert('すべての項目を入力してください'); return; }
+  const existing = holdings.find(h=>h.stockId===stockId);
+  if(existing){ existing.qty = qty; existing.avgCost = cost; }
+  else { holdings.push({ id: uid(), stockId, qty, avgCost: cost }); }
+  save(KEYS.holdings, holdings);
+  document.getElementById('h_qty').value=''; document.getElementById('h_cost').value='';
+  closeModal('modalHolding');
+  renderPortfolio(); renderDashboard();
+}
+function deleteHolding(id){
+  holdings = holdings.filter(h=>h.id!==id);
+  save(KEYS.holdings, holdings);
+  renderPortfolio(); renderDashboard();
+}
+
+/* ---------- sparkline ---------- */
+function sparklineSVG(points){
+  if(points.length < 2) return '<div style="font-size:11px;color:var(--ink-soft);">データが2件以上でグラフ表示</div>';
+  const w=280,h=54,pad=4;
+  const vals = points.map(p=>p.price);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = (max-min)||1;
+  const step = (w-pad*2)/(points.length-1);
+  const coords = points.map((p,i)=>{
+    const x = pad + i*step;
+    const y = h-pad - ((p.price-min)/range)*(h-pad*2);
+    return [x,y];
+  });
+  const path = coords.map((c,i)=> (i===0?'M':'L')+c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ');
+  const up = points[points.length-1].price >= points[0].price;
+  const color = up ? 'var(--vermillion)' : 'var(--indigo)';
+  return `<svg class="sparkline" width="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="height:54px;">
+    <path d="${path}" fill="none" stroke="${color}" stroke-width="2"/>
+  </svg>`;
+}
+
+/* ---------- render: watchlist ---------- */
+function renderWatchlist(){
+  const el = document.getElementById('watchlistContainer');
+  if(stocks.length===0){ el.innerHTML = emptyState('まだ銘柄が登録されていません', '右下の＋ボタンから気になる銘柄を登録しましょう'); return; }
+  el.innerHTML = stocks.map(s=>{
+    const lr = latestRecord(s.id);
+    let priceHtml = '<span class="stock-sector">未記録</span>';
+    let diffHtml = '';
+    if(lr){
+      priceHtml = `<div class="price-tag">${fmtYen(lr.price)}</div>`;
+      if(s.targetPrice){
+        const diff = ((lr.price - s.targetPrice)/s.targetPrice*100);
+        diffHtml = `<div class="badge-diff ${diff>=0?'up':'down'}">目標比 ${fmtPct(diff)}</div>`;
+      }
+    }
+    return `<div class="card">
+      <div class="card-top">
+        <div>
+          <span class="stock-code">${s.code}｜${s.market}</span>
+          <div class="stock-name">${s.name}</div>
+          <div class="stock-sector">${s.sector || ''}${s.targetPrice? ' ・ 目標 '+fmtYen(s.targetPrice):''}</div>
+        </div>
+        <div>${priceHtml}${diffHtml}</div>
+      </div>
+      ${s.memo ? `<div style="font-size:12px;color:var(--ink-soft);margin-top:8px;">${escapeHtml(s.memo)}</div>` : ''}
+      <div class="card-actions">
+        <button class="mini" onclick="editStock('${s.id}')">編集</button>
+        <button class="mini" onclick="jumpToRecords('${s.id}')">データを見る</button>
+        <button class="mini danger" onclick="deleteStock('${s.id}')">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function jumpToRecords(stockId){
+  document.querySelector('.tab-btn[data-view="records"]').click();
+  populateStockSelects();
+  document.getElementById('stockSelectForRecord').value = stockId;
+  renderRecordDetail();
+}
+
+/* ---------- render: records ---------- */
+function renderRecordDetail(){
+  populateStockSelects();
+  const sel = document.getElementById('stockSelectForRecord');
+  const stockId = sel.value;
+  const el = document.getElementById('recordDetail');
+  if(!stockId){ el.innerHTML = emptyState('銘柄がありません', 'まず銘柄一覧タブから銘柄を登録してください'); return; }
+  const rs = records.filter(r=>r.stockId===stockId).sort((a,b)=>a.date<b.date?-1:1);
+  if(rs.length===0){
+    el.innerHTML = emptyState('データがまだありません', '右下の＋ボタンから株価・指標を記録しましょう') ;
+    return;
+  }
+  const rows = rs.slice().reverse().map(r=>`
+    <tr>
+      <td class="mono">${r.date}</td>
+      <td>${fmtYen(r.price)}</td>
+      <td>${r.per ?? '-'}</td>
+      <td>${r.pbr ?? '-'}</td>
+      <td>${r.dividendYield ?? '-'}%</td>
+      <td>${r.roe ?? '-'}%</td>
+      <td><button class="mini danger" style="padding:3px 7px;" onclick="deleteRecord('${r.id}')">削除</button></td>
+    </tr>`).join('');
+  el.innerHTML = `
+    <div class="card">
+      ${sparklineSVG(rs)}
+    </div>
+    <div class="card" style="overflow-x:auto;">
+      <table class="log-table">
+        <thead><tr><th>日付</th><th>株価</th><th>PER</th><th>PBR</th><th>配当</th><th>ROE</th><th></th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    ${rs.filter(r=>r.memo).slice().reverse().slice(0,5).map(r=>`
+      <div class="card">
+        <span class="stamp-tag">${r.date}</span>
+        <div style="font-size:12.5px; margin-top:6px; color:var(--ink);">${escapeHtml(r.memo)}</div>
+      </div>`).join('')}
+  `;
+}
+
+/* ---------- render: portfolio ---------- */
+function renderPortfolio(){
+  populateStockSelects();
+  const el = document.getElementById('portfolioContainer');
+  if(holdings.length===0){ el.innerHTML = emptyState('保有株がまだ登録されていません', '右下の＋ボタンから保有銘柄を登録しましょう'); return; }
+  el.innerHTML = holdings.map(h=>{
+    const s = stockById(h.stockId);
+    if(!s) return '';
+    const lr = latestRecord(h.stockId);
+    const curPrice = lr ? lr.price : h.avgCost;
+    const marketValue = curPrice * h.qty;
+    const costValue = h.avgCost * h.qty;
+    const pl = marketValue - costValue;
+    const plPct = costValue ? (pl/costValue*100) : 0;
+    return `<div class="card">
+      <div class="card-top">
+        <div>
+          <span class="stock-code">${s.code}</span>
+          <div class="stock-name">${s.name}</div>
+          <div class="stock-sector">${h.qty.toLocaleString()}株 ・ 取得単価 ${fmtYen(h.avgCost)}${!lr? '（現在値未記録・取得単価で計算）':''}</div>
+        </div>
+        <div>
+          <div class="price-tag">${fmtYen(marketValue)}</div>
+          <div class="badge-diff ${pl>=0?'up':'down'}">${pl>=0?'+':''}${fmtYen(pl)}（${fmtPct(plPct)}）</div>
+        </div>
+      </div>
+      <div class="card-actions">
+        <button class="mini" onclick="jumpToRecords('${s.id}')">現在値を記録</button>
+        <button class="mini danger" onclick="deleteHolding('${h.id}')">削除</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+/* ---------- render: dashboard ---------- */
+function renderDashboard(){
+  let totalValue=0, totalCost=0;
+  holdings.forEach(h=>{
+    const lr = latestRecord(h.stockId);
+    const curPrice = lr ? lr.price : h.avgCost;
+    totalValue += curPrice * h.qty;
+    totalCost += h.avgCost * h.qty;
+  });
+  const pl = totalValue - totalCost;
+  const plPct = totalCost ? (pl/totalCost*100) : 0;
+  document.getElementById('kpiTotalValue').textContent = fmtYen(totalValue);
+  document.getElementById('kpiHoldingCount').textContent = holdings.length + '銘柄保有';
+  const plEl = document.getElementById('kpiTotalPL');
+  plEl.textContent = (pl>=0?'+':'') + fmtYen(pl);
+  plEl.className = 'value mono ' + (pl>=0?'up':'down');
+  document.getElementById('kpiTotalPLPct').textContent = fmtPct(plPct);
+  document.getElementById('kpiWatchCount').textContent = stocks.length;
+  document.getElementById('kpiRecordCount').textContent = records.length;
+
+  // movers: compare first vs latest record per stock
+  const movers = stocks.map(s=>{
+    const rs = records.filter(r=>r.stockId===s.id).sort((a,b)=>a.date<b.date?-1:1);
+    if(rs.length<2) return null;
+    const diffPct = (rs[rs.length-1].price - rs[0].price)/rs[0].price*100;
+    return { s, diffPct, latest: rs[rs.length-1].price };
+  }).filter(Boolean).sort((a,b)=>b.diffPct-a.diffPct);
+
+  const moversEl = document.getElementById('moversList');
+  if(movers.length===0){
+    moversEl.innerHTML = emptyState('比較できるデータがまだありません', '同一銘柄で2件以上のデータを記録すると変動が表示されます');
+  } else {
+    moversEl.innerHTML = movers.slice(0,6).map(m=>`
+      <div class="card" style="padding:10px 14px;">
+        <div class="card-top" style="align-items:center;">
+          <div>
+            <span class="stock-code">${m.s.code}</span>
+            <span style="font-family:'Shippori Mincho',serif; font-weight:700; margin-left:6px;">${m.s.name}</span>
+          </div>
+          <div class="badge-diff ${m.diffPct>=0?'up':'down'}" style="font-size:13px;">${fmtPct(m.diffPct)}</div>
+        </div>
+      </div>`).join('');
+  }
+}
+
+function emptyState(title, sub){
+  return `<div class="empty"><strong>${title}</strong><br>${sub}</div>`;
+}
+function escapeHtml(str){
+  const d = document.createElement('div'); d.textContent = str; return d.innerHTML;
+}
+
+/* ---------- init ---------- */
+document.getElementById('todayLabel').textContent = new Date().toLocaleDateString('ja-JP', { year:'numeric', month:'long', day:'numeric', weekday:'short' });
+populateStockSelects();
+renderDashboard();
+renderWatchlist();
+</script>
+</body>
+</html>
