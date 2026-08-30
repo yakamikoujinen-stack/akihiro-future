@@ -199,7 +199,10 @@
 <header class="masthead">
   <div class="masthead-row">
     <div class="masthead-title">相場帳<small>KABU NOTE</small></div>
-    <div class="stamp">研究</div>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button id="settingsBtn" style="background:rgba(255,255,255,0.08); border:1px solid rgba(255,255,255,0.25); color:#e8ecf5; width:38px; height:38px; border-radius:50%; font-size:16px; cursor:pointer;" title="API設定">⚙</button>
+      <div class="stamp">研究</div>
+    </div>
   </div>
   <div class="masthead-date" id="todayLabel"></div>
 </header>
@@ -279,6 +282,10 @@
         <select id="f_market"><option>日本株</option><option>米国株</option><option>その他</option></select>
       </div>
     </div>
+    <div style="margin:-4px 0 10px;">
+      <button class="mini" type="button" onclick="autoFillStockInfo()">🔎 J-Quantsから銘柄名を自動取得</button>
+      <div id="stockFetchStatus" style="font-size:11px; color:var(--ink-soft); margin-top:5px;"></div>
+    </div>
     <div class="field"><label>銘柄名</label><input id="f_name" placeholder="例: トヨタ自動車"></div>
     <div class="field-row">
       <div class="field"><label>業種</label><input id="f_sector" placeholder="例: 輸送用機器"></div>
@@ -297,6 +304,10 @@
   <div class="modal">
     <h3>参考データを記録</h3>
     <div class="field"><label>対象銘柄</label><select id="r_stockId"></select></div>
+    <div style="margin:-4px 0 10px;">
+      <button class="mini" type="button" onclick="autoFillLatestPrice()">🔎 J-Quantsから最新株価を自動取得</button>
+      <div id="recordFetchStatus" style="font-size:11px; color:var(--ink-soft); margin-top:5px;"></div>
+    </div>
     <div class="field-row">
       <div class="field"><label>日付</label><input id="r_date" type="date"></div>
       <div class="field"><label>株価</label><input id="r_price" type="number" placeholder="円"></div>
@@ -313,6 +324,24 @@
     <div class="modal-actions">
       <button class="btn-secondary" onclick="closeModal('modalRecord')">キャンセル</button>
       <button class="btn-primary" onclick="saveRecord()">記録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: settings -->
+<div class="modal-backdrop" id="modalSettings">
+  <div class="modal">
+    <h3>API設定（J-Quants）</h3>
+    <div class="field">
+      <label>J-Quants APIキー</label>
+      <input id="s_apikey" placeholder="APIキーを貼り付け">
+    </div>
+    <div style="font-size:11.5px; color:var(--ink-soft); line-height:1.7; margin-bottom:10px;">
+      APIキーはこの端末のブラウザ内にのみ保存され、GitHubには送信・保存されません。J-Quantsダッシュボードの「API Key」から取得したキーを貼り付けてください。
+    </div>
+    <div class="modal-actions">
+      <button class="btn-secondary" onclick="closeModal('modalSettings')">閉じる</button>
+      <button class="btn-primary" onclick="saveApiKey()">保存する</button>
     </div>
   </div>
 </div>
@@ -351,6 +380,74 @@ function latestRecord(stockId){
   return rs[0] || null;
 }
 function stockById(id){ return stocks.find(s=>s.id===id); }
+
+/* ---------- J-Quants API ---------- */
+const APIKEY_STORAGE = 'kabu_note_v1_jquants_apikey';
+function getApiKey(){ return localStorage.getItem(APIKEY_STORAGE) || ''; }
+function saveApiKey(){
+  const v = document.getElementById('s_apikey').value.trim();
+  localStorage.setItem(APIKEY_STORAGE, v);
+  closeModal('modalSettings');
+}
+document.getElementById('settingsBtn').addEventListener('click', ()=>{
+  document.getElementById('s_apikey').value = getApiKey();
+  openModal('modalSettings');
+});
+
+async function jquantsGet(path, params){
+  const key = getApiKey();
+  if(!key){ throw new Error('NO_KEY'); }
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`https://api.jquants.com/v2/${path}?${qs}`, {
+    headers: { 'x-api-key': key }
+  });
+  if(!res.ok) throw new Error('HTTP_'+res.status);
+  return res.json();
+}
+
+async function autoFillStockInfo(){
+  const code = document.getElementById('f_code').value.trim();
+  const statusEl = document.getElementById('stockFetchStatus');
+  if(!code){ statusEl.textContent = '先に証券コードを入力してください'; return; }
+  statusEl.textContent = '取得中...';
+  try{
+    const json = await jquantsGet('equities/master', { code });
+    const arr = json.data || json.equities || json.info || [];
+    const item = Array.isArray(arr) ? arr[0] : arr;
+    if(!item){ statusEl.textContent = 'データが見つかりませんでした。手動で入力してください'; return; }
+    const name = item.CompanyName || item.CompanyNameJapanese || item.Name || item.company_name;
+    const sector = item.Sector33Name || item.Sector17Name || item.sector33_name || '';
+    if(name) document.getElementById('f_name').value = name;
+    if(sector) document.getElementById('f_sector').value = sector;
+    statusEl.textContent = '取得できました（内容を確認してください）';
+  } catch(e){
+    if(e.message==='NO_KEY'){ statusEl.textContent = '右上の⚙からAPIキーを設定してください'; }
+    else { statusEl.textContent = '取得に失敗しました（CORS制限の可能性があります）。手動で入力してください'; }
+  }
+}
+
+async function autoFillLatestPrice(){
+  const stockId = document.getElementById('r_stockId').value;
+  const statusEl = document.getElementById('recordFetchStatus');
+  if(!stockId){ statusEl.textContent = '銘柄を選択してください'; return; }
+  const s = stockById(stockId);
+  statusEl.textContent = '取得中...';
+  try{
+    const json = await jquantsGet('equities/bars/daily', { code: s.code });
+    const arr = json.data || json.daily_quotes || [];
+    if(!Array.isArray(arr) || arr.length===0){ statusEl.textContent = 'データが見つかりませんでした。手動で入力してください'; return; }
+    arr.sort((a,b)=> (b.Date||b.date||'').localeCompare(a.Date||a.date||''));
+    const latest = arr[0];
+    const date = latest.Date || latest.date;
+    const close = latest.Close ?? latest.C ?? latest.close;
+    if(date) document.getElementById('r_date').value = date.slice(0,10);
+    if(close != null) document.getElementById('r_price').value = close;
+    statusEl.textContent = `${date ? date.slice(0,10):''} 時点の株価を取得しました（内容を確認して記録してください）`;
+  } catch(e){
+    if(e.message==='NO_KEY'){ statusEl.textContent = '右上の⚙からAPIキーを設定してください'; }
+    else { statusEl.textContent = '取得に失敗しました（CORS制限の可能性があります）。手動で入力してください'; }
+  }
+}
 
 /* ---------- tabs ---------- */
 document.querySelectorAll('.tab-btn').forEach(btn=>{
