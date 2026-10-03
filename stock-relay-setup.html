@@ -1,0 +1,81 @@
+<!doctype html><html lang="ja"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>株式チェック・中継サーバー設置手順</title><style>body{font-family:system-ui,sans-serif;background:#f2f5ef;color:#183b39;line-height:1.8;margin:0}main{max-width:850px;margin:auto;padding:24px 18px}section{background:white;border:1px solid #dbe5df;border-radius:14px;padding:20px;margin:18px 0}h1{font-size:26px}h2{font-size:21px}a{color:#12654e}button{font:inherit;padding:12px;border-radius:8px;background:#16785d;color:white;border:0}textarea{width:100%;box-sizing:border-box;min-height:240px;font:13px monospace}li{margin:10px 0}.note{background:#fff0ce;padding:14px;border-radius:8px}code{overflow-wrap:anywhere}</style><main><h1>株式チェック：中継サーバーを設置する</h1><p>GitHubの株式アプリとJ-Quantsの間に、自分専用の通信窓口を作ります。キングアプリとは別の株式投資用リポジトリで作業します。</p><p class="note">プログラムの試験は完了していますが、公開サーバーはまだ設置されていません。J-Quantsの実データ取得は、設置後に本人のAPIキーで確認します。</p>
+<section><h2>① 株式用GitHubへ4ファイルをアップロード</h2><p><code>yakamikoujinen-stack/akihiro-future</code> の一番上の階層へ、次の4つをアップロードします。</p><ul><li><a href="stock-analysis-test.html">stock-analysis-test.html</a>：v1.3のアプリ。同名ファイルを上書き。</li><li><a href="stock-jquants-worker.js">stock-jquants-worker.js</a>：中継プログラム。</li><li><a href="wrangler.jsonc">wrangler.jsonc</a>：中継プログラムの設置設定。</li><li><a href="stock-relay-setup.html">stock-relay-setup.html</a>：この手順書。</li></ul><p>APIキーはどのファイルにも書き込みません。GitHubへAPIキーをアップロードしないでください。</p></section>
+<section><h2>② Cloudflareに登録</h2><p><a href="https://dash.cloudflare.com/sign-up" target="_blank" rel="noopener">Cloudflareの登録画面を開く</a></p><p>アカウント作成とメール確認を行います。中継用にはWorkersの無料枠を使います。J-Quantsの料金とは別のサービスです。独自ドメインを購入する必要はありません。</p><p>Cloudflareにログインし「Workers &amp; Pages」を開きます。画面が異なる場合はその画像を相棒に送ってください。メール・パスワード・APIキーは写さないでください。</p></section>
+<section><h2>③ GitHubから中継プログラムを設置</h2><ol><li>「Create application（アプリケーションを作成）」を選びます。</li><li>既存GitHubリポジトリの接続を選び、<code>akihiro-future</code> を選択します。接続許可を選べる場合はこのリポジトリだけを許可します。</li><li>Worker名は <code>fujiwara-stock-relay</code>。ルートディレクトリはリポジトリのルート（<code>/</code>）。</li><li>ビルドコマンドを求められたら空欄。デプロイコマンドは <code>npx wrangler deploy</code>。<code>wrangler.jsonc</code> で実行するファイルが指定されています。</li><li>「Deploy」を押します。エラーの場合はAPIキーを入れず、エラー画面を相棒に送ってください。</li><li>公開後に表示される <code>https://fujiwara-stock-relay.自分の名前.workers.dev</code> のURLをコピーします。URLを開くと「中継サーバーが稼働しています」と表示します。</li></ol><p>コード編集画面から作る方法が表示された場合は、下のプログラムを貼り付ける方法も使えます。</p></section>
+<section><h2>④ 株式アプリで接続確認</h2><ol><li>株式アプリを開き、上部が「v1.3」になっているか確認します。旧版なら、いつものURLをブラウザで再読み込みします。</li><li>「ネット取得の接続設定」を開き、「自分の中継サーバーURL」に公開したURLを貼り付けます。末尾に <code>/api</code> は付けません。</li><li>「中継サーバーの接続確認」を押します。自分のCloudflareに設置したURLであることを確認します。</li><li>契約済みのJ-Quantsプランを選び、J-QuantsのAPIキーを入力します。</li><li>一番上の検索欄に <code>9432</code> を入力し「データを読み込む」を押します。「NTTで試す」は固定データ表示なので、通信確認には使いません。</li><li>「J-Quantsから…期の通期実績を取得しました」と表示されるか確認し、数字・出典・株価基準日を確認して「気になる銘柄に保存」を押します。</li></ol><p>「中継サーバーへの接続を確認しました」だけでは、J-Quantsの認証が成功したことにはなりません。銘柄読込まで確認します。APIキーはアプリを閉じると消えます。中継URLとプランはこの端末に保存します。</p></section>
+<section><h2>プログラムをコピーする場合</h2><p>Cloudflareにコード編集画面がある場合、既存コード全体をこのコードに置き換えて公開します。GitHub接続で設置できた場合は不要です。</p><button id="copy">中継プログラムをコピー</button><p id="copied" role="status"></p><textarea id="workerCode" readonly aria-label="中継プログラム">// FUJIWARA stock relay v1.0 — Cloudflare Worker, ES module.
+// No API key is embedded, saved, cached, or written to logs by this code.
+const APP_ORIGIN = &#x27;https://yakamikoujinen-stack.github.io&#x27;;
+const UPSTREAM = &#x27;https://api.jquants.com/v2&#x27;;
+const ENDPOINTS = {
+  &#x27;/equities/master&#x27;: new Set([&#x27;code&#x27;, &#x27;date&#x27;, &#x27;pagination_key&#x27;]),
+  &#x27;/fins/summary&#x27;: new Set([&#x27;code&#x27;, &#x27;pagination_key&#x27;]),
+  &#x27;/equities/bars/daily&#x27;: new Set([&#x27;code&#x27;, &#x27;from&#x27;, &#x27;to&#x27;, &#x27;pagination_key&#x27;])
+};
+const version = &#x27;fujiwara-stock-relay-v1&#x27;;
+function cors(origin) {
+  const h = { &#x27;Content-Type&#x27;: &#x27;application/json; charset=utf-8&#x27;, &#x27;Cache-Control&#x27;: &#x27;no-store&#x27;, &#x27;Vary&#x27;: &#x27;Origin&#x27;, &#x27;X-Content-Type-Options&#x27;: &#x27;nosniff&#x27; };
+  if (origin === APP_ORIGIN) {
+    h[&#x27;Access-Control-Allow-Origin&#x27;] = APP_ORIGIN;
+    h[&#x27;Access-Control-Allow-Methods&#x27;] = &#x27;GET, POST, OPTIONS&#x27;;
+    h[&#x27;Access-Control-Allow-Headers&#x27;] = &#x27;Content-Type&#x27;;
+    h[&#x27;Access-Control-Max-Age&#x27;] = &#x27;600&#x27;;
+  }
+  return h;
+}
+function reply(data, status, origin) { return new Response(JSON.stringify(data), { status, headers: cors(origin) }); }
+export default {
+  async fetch(request) {
+    const url = new URL(request.url), origin = request.headers.get(&#x27;Origin&#x27;) || &#x27;&#x27;;
+    if (url.pathname === &#x27;/health&#x27; &amp;&amp; request.method === &#x27;GET&#x27;) return reply({ ok: true, service: version }, 200, origin);
+    if (url.pathname === &#x27;/&#x27; &amp;&amp; request.method === &#x27;GET&#x27;) return new Response(&#x27;FUJIWARA 株式チェック用の中継サーバーが稼働しています。APIキーはここに入力せず、株式アプリに入力してください。&#x27;, { headers: { &#x27;Content-Type&#x27;: &#x27;text/plain; charset=utf-8&#x27;, &#x27;Cache-Control&#x27;: &#x27;no-store&#x27; } });
+    if (origin !== APP_ORIGIN) return reply({ message: &#x27;この中継サーバーは指定の株式アプリ専用です。&#x27; }, 403, origin);
+    const path = url.pathname.startsWith(&#x27;/api/&#x27;) ? url.pathname.slice(4) : &#x27;&#x27;;
+    if (!ENDPOINTS[path]) return reply({ message: &#x27;対応していない取得項目です。&#x27; }, 404, origin);
+    if (request.method === &#x27;OPTIONS&#x27;) {
+      if (request.headers.get(&#x27;Access-Control-Request-Method&#x27;) !== &#x27;POST&#x27;) return reply({ message: &#x27;取得にはPOSTを使用してください。&#x27; }, 405, origin);
+      return new Response(null, { status: 204, headers: cors(origin) });
+    }
+    if (request.method !== &#x27;POST&#x27;) return reply({ message: &#x27;取得にはPOSTを使用してください。&#x27; }, 405, origin);
+    if (!request.headers.get(&#x27;Content-Type&#x27;)?.startsWith(&#x27;application/json&#x27;)) return reply({ message: &#x27;送信形式を確認してください。&#x27; }, 415, origin);
+    for (const [name, value] of url.searchParams) {
+      if (!ENDPOINTS[path].has(name) || url.searchParams.getAll(name).length !== 1 || value.length &gt; 1500) return reply({ message: &#x27;取得条件が不正です。&#x27; }, 400, origin);
+      if (name === &#x27;code&#x27; &amp;&amp; !/^[0-9A-Z]{4}0?$/.test(value)) return reply({ message: &#x27;銘柄コードが不正です。&#x27; }, 400, origin);
+      if ([&#x27;date&#x27;, &#x27;from&#x27;, &#x27;to&#x27;].includes(name) &amp;&amp; !/^\d{4}-\d{2}-\d{2}$/.test(value)) return reply({ message: &#x27;日付の形式が不正です。&#x27; }, 400, origin);
+    }
+    if (path !== &#x27;/equities/master&#x27; &amp;&amp; !url.searchParams.has(&#x27;code&#x27;)) return reply({ message: &#x27;銘柄コードが必要です。&#x27; }, 400, origin);
+    if (path === &#x27;/equities/master&#x27; &amp;&amp; !url.searchParams.has(&#x27;date&#x27;)) return reply({ message: &#x27;銘柄一覧の日付が必要です。&#x27; }, 400, origin);
+    let key;
+    try {
+      if (Number(request.headers.get(&#x27;Content-Length&#x27;) || 0) &gt; 4096) return reply({ message: &#x27;送信内容が大きすぎます。&#x27; }, 413, origin);
+      const text = await request.text();
+      if (text.length &gt; 4096) return reply({ message: &#x27;送信内容が大きすぎます。&#x27; }, 413, origin);
+      const body = JSON.parse(text);
+      key = body.apiKey;
+      if (typeof key !== &#x27;string&#x27; || !/^[\x21-\x7e]{8,1024}$/.test(key)) return reply({ message: &#x27;APIキーの入力形式を確認してください。&#x27; }, 400, origin);
+    } catch { return reply({ message: &#x27;APIキーの入力形式を確認してください。&#x27; }, 400, origin); }
+    const controller = new AbortController(), timer = setTimeout(() =&gt; controller.abort(), 18000);
+    try {
+      const upstream = await fetch(UPSTREAM + path + url.search, { method: &#x27;GET&#x27;, headers: { &#x27;x-api-key&#x27;: key, &#x27;Accept&#x27;: &#x27;application/json&#x27; }, signal: controller.signal, redirect: &#x27;error&#x27;, cache: &#x27;no-store&#x27; });
+      if (!upstream.ok) {
+        const errors = { 401: &#x27;J-QuantsのAPIキーを確認してください。&#x27;, 403: &#x27;J-Quantsが取得を拒否しました。APIキー・実際の契約プラン・取得対象日を確認してください。&#x27;, 429: &#x27;J-Quantsの取得回数上限です。1分ほど待ってください。&#x27; };
+        return reply({ message: errors[upstream.status] || &#x27;J-Quantsで取得エラーが発生しました。&#x27;, upstreamStatus: upstream.status }, upstream.status &gt;= 400 &amp;&amp; upstream.status &lt; 600 ? upstream.status : 502, origin);
+      }
+      const data = await upstream.json();
+      if (!data || !Array.isArray(data.data)) return reply({ message: &#x27;J-Quantsの応答形式を確認できません。&#x27; }, 502, origin);
+      // Forward only the documented result, never reflect request body or key.
+      return reply({ data: data.data, ...(data.pagination_key ? { pagination_key: data.pagination_key } : {}) }, 200, origin);
+    } catch { return reply({ message: controller.signal.aborted ? &#x27;J-Quantsへの接続がタイムアウトしました。&#x27; : &#x27;中継サーバーからJ-Quantsに接続できませんでした。&#x27; }, 502, origin); }
+    finally { key = undefined; clearTimeout(timer); }
+  }
+};
+</textarea><details><summary>GitHubへ置く設定ファイルの内容</summary><pre>{
+  &quot;name&quot;: &quot;fujiwara-stock-relay&quot;,
+  &quot;main&quot;: &quot;stock-jquants-worker.js&quot;,
+  &quot;compatibility_date&quot;: &quot;2026-10-03&quot;,
+  &quot;workers_dev&quot;: true,
+  &quot;observability&quot;: { &quot;enabled&quot;: false }
+}
+</pre></details></section>
+<section><h2>エラーが出た場合</h2><ul><li>中継接続確認で失敗：公開URL・公開状態・設置したプログラムを確認。</li><li>J-Quantsが取得を拒否：本人のAPIキーと、実際に契約済みのプランを確認。</li><li>回数上限：1分ほど待って再試行。</li><li>数値の空欄：未開示・取得期間不足・分割確認が必要な期は空欄です。値を0に置き換えません。</li></ul><p>サーバー側にAPIキーを保存する機能はありません。通信先はJ-Quantsの公式APIに固定しています。このプログラムはキー・本文をログに書かず、設定ファイルでも実行ログを無効にしています。</p><p>個人の銘柄分析に使用してください。第三者へ取得データを公開する機能はありません。</p></section>
+<p>公式資料：<a href="https://developers.cloudflare.com/workers/get-started/dashboard/">Cloudflare設置手順</a> ／ <a href="https://developers.cloudflare.com/workers/platform/pricing/">Workers料金・無料枠</a> ／ <a href="https://jpx-jquants.com/spec/">J-Quants API仕様</a></p></main><script>document.getElementById('copy').onclick=async()=>{let el=document.getElementById('workerCode');try{await navigator.clipboard.writeText(el.value);document.getElementById('copied').textContent='コピーしました。Cloudflareのコード欄へ貼り付けてください。'}catch{el.focus();el.select();el.setSelectionRange(0,el.value.length);document.getElementById('copied').textContent='コードを選択しました。端末の「コピー」を押してください。'}};</script></html>
