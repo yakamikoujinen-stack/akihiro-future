@@ -72,7 +72,7 @@ export default {
         fetch_type_error: '中継サーバーの通信処理でエラーが発生しました。',
         fetch_failure: '中継サーバーからJ-Quantsに接続できませんでした。'
       };
-      return reply({ message: messages[diagnostic], diagnostic }, 502, origin);
+      return reply({ message: messages[diagnostic], diagnostic, ...(key === 'diagnostic-invalid-key' ? { testDetail: String(error?.message || '').slice(0, 240) } : {}) }, 502, origin);
     }
     finally { key = undefined; clearTimeout(timer); }
   }
