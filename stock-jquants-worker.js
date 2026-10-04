@@ -52,7 +52,9 @@ export default {
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 18000);
     let stage = 'fetch';
     try {
-      const upstream = await fetch(UPSTREAM + path + url.search, { method: 'GET', headers: { 'x-api-key': key, 'Accept': 'application/json' }, signal: controller.signal, redirect: 'error', cache: 'no-store' });
+      const upstream = await fetch(UPSTREAM + path + url.search, { method: 'GET', headers: { 'x-api-key': key, 'Accept': 'application/json' }, signal: controller.signal, redirect: 'manual', cache: 'no-store' });
+      // Do not forward API credentials to a redirect destination.
+      if (upstream.status >= 300 && upstream.status < 400) return reply({ message: 'J-Quantsが転送を要求しました。中継サーバーの接続先を確認してください。', upstreamStatus: upstream.status }, 502, origin);
       if (!upstream.ok) {
         const errors = { 401: 'J-QuantsのAPIキーを確認してください。', 403: 'J-Quantsが取得を拒否しました。APIキー・実際の契約プラン・取得対象日を確認してください。', 429: 'J-Quantsの取得回数上限です。1分ほど待ってください。' };
         return reply({ message: errors[upstream.status] || 'J-Quantsで取得エラーが発生しました。', upstreamStatus: upstream.status }, upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502, origin);
@@ -72,7 +74,7 @@ export default {
         fetch_type_error: '中継サーバーの通信処理でエラーが発生しました。',
         fetch_failure: '中継サーバーからJ-Quantsに接続できませんでした。'
       };
-      return reply({ message: messages[diagnostic], diagnostic, ...(key === 'diagnostic-invalid-key' ? { testDetail: String(error?.message || '').slice(0, 240) } : {}) }, 502, origin);
+      return reply({ message: messages[diagnostic], diagnostic }, 502, origin);
     }
     finally { key = undefined; clearTimeout(timer); }
   }
