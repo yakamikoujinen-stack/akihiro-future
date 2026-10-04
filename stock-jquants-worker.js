@@ -50,17 +50,30 @@ export default {
       if (typeof key !== 'string' || !/^[\x21-\x7e]{8,1024}$/.test(key)) return reply({ message: 'APIキーの入力形式を確認してください。' }, 400, origin);
     } catch { return reply({ message: 'APIキーの入力形式を確認してください。' }, 400, origin); }
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), 18000);
+    let stage = 'fetch';
     try {
       const upstream = await fetch(UPSTREAM + path + url.search, { method: 'GET', headers: { 'x-api-key': key, 'Accept': 'application/json' }, signal: controller.signal, redirect: 'error', cache: 'no-store' });
       if (!upstream.ok) {
         const errors = { 401: 'J-QuantsのAPIキーを確認してください。', 403: 'J-Quantsが取得を拒否しました。APIキー・実際の契約プラン・取得対象日を確認してください。', 429: 'J-Quantsの取得回数上限です。1分ほど待ってください。' };
         return reply({ message: errors[upstream.status] || 'J-Quantsで取得エラーが発生しました。', upstreamStatus: upstream.status }, upstream.status >= 400 && upstream.status < 600 ? upstream.status : 502, origin);
       }
+      stage = 'json';
       const data = await upstream.json();
       if (!data || !Array.isArray(data.data)) return reply({ message: 'J-Quantsの応答形式を確認できません。' }, 502, origin);
       // Forward only the documented result, never reflect request body or key.
       return reply({ data: data.data, ...(data.pagination_key ? { pagination_key: data.pagination_key } : {}) }, 200, origin);
-    } catch { return reply({ message: controller.signal.aborted ? 'J-Quantsへの接続がタイムアウトしました。' : '中継サーバーからJ-Quantsに接続できませんでした。' }, 502, origin); }
+    } catch (error) {
+      const cacheUnsupported = /cache|RequestInit/i.test(String(error?.message || ''));
+      const diagnostic = controller.signal.aborted ? 'timeout' : stage === 'json' ? 'invalid_json' : cacheUnsupported ? 'fetch_options' : error?.name === 'TypeError' ? 'fetch_type_error' : 'fetch_failure';
+      const messages = {
+        timeout: 'J-Quantsへの接続がタイムアウトしました。',
+        invalid_json: 'J-Quantsの応答をJSONとして読み取れませんでした。',
+        fetch_options: '中継サーバーの通信設定が実行環境に対応していません。',
+        fetch_type_error: '中継サーバーの通信処理でエラーが発生しました。',
+        fetch_failure: '中継サーバーからJ-Quantsに接続できませんでした。'
+      };
+      return reply({ message: messages[diagnostic], diagnostic }, 502, origin);
+    }
     finally { key = undefined; clearTimeout(timer); }
   }
 };
